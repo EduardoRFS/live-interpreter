@@ -1,0 +1,49 @@
+{
+  "name": "live-interpretert",
+  "version": "0.0.0",
+  "main": "index.js",
+  "author": "EduardoRFS",
+  "license": "MIT",
+  "private": true,
+  "scripts": {
+    "test": "jest",
+    "build": "tsc",
+    "execute": "node dist/src/cli"
+  },
+  "devDependencies": {
+    "@types/jest": "^24.0.18",
+    "@types/node": "^12.7.2",
+    "@types/ramda": "^0.26.21",
+    "@typescript-eslint/eslint-plugin": "^2.0.0",
+    "eslint": "^6.2.2",
+    "eslint-config-airbnb-base": "^14.0.0",
+    "eslint-config-airbnb-typescript": "^4.0.1",
+    "eslint-config-prettier": "^6.1.0",
+    "eslint-plugin-import": "^2.18.2",
+    "eslint-plugin-jest": "^22.15.2",
+    "eslint-plugin-jsx-a11y": "^6.2.3",
+    "eslint-plugin-prettier": "^3.1.0",
+    "eslint-plugin-react": "^7.14.3",
+    "jest": "^24.9.0",
+    "prettier": "^1.18.2",
+    "ts-jest": "^24.0.2",
+    "typescript": "^3.5.3"
+  },
+  "dependencies": {
+    "@typescript-eslint/typescript-estree": "^2.0.0",
+    "ramda": "^0.26.1",
+    "ts-essentials": "^3.0.2"
+  },
+  "prettier": {
+    "tabWidth": 2,
+    "singleQuote": true,
+    "trailingComma": "es5"
+  },
+  "jest": {
+    "roots": [
+      "<rootDir>/src",
+      "<rootDir>/test"
+    ],
+    "preset": "ts-jest/presets/js-with-ts"
+  }
+}
