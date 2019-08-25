@@ -71,17 +71,24 @@ const execute = (scope: Scope) => (node: Node): T => {
     return keep(run(scope, keys));
   }
   if (node.type === type.BinaryExpression) {
-    if (node.operator === '-') {
-      const a = execute(scope)(node.left).value as any;
-      const b = execute(scope)(node.right).value as any;
-      return keep(a - b);
+    const a = execute(scope)(node.left).value as any;
+    const b = execute(scope)(node.right).value as any;
+    switch (node.operator) {
+      case '+':
+        return keep(a + b);
+      case '-':
+        return keep(a - b);
+      case '*':
+        return keep(a * b);
+      case '/':
+        return keep(a / b);
+      case '==':
+        return keep(a === b);
+      case '!=':
+        return keep(a !== b);
+      default:
+        throw new Error(`unknown operator ${node.operator}`);
     }
-    if (node.operator === '==') {
-      const a = execute(scope)(node.left).value as any;
-      const b = execute(scope)(node.right).value as any;
-      return keep(a === b);
-    }
-    throw new Error(`unknown operator ${node.operator}`);
   }
   if (node.type === type.CallExpression) {
     const fn = execute(scope)(node.callee).value;
