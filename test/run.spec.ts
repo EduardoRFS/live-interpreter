@@ -18,3 +18,9 @@ test('function call', () => {
   const { value } = evaluate('let sub = (a, b) => a - b; sub(4, 6);');
   expect(value).toBe(-2);
 });
+test('auto currying', () => {
+  const { value } = evaluate(
+    'let sub = (a, b) => a - b; let subTwo = sub(2); subTwo(5)'
+  );
+  expect(value).toBe(-3);
+});

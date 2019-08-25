@@ -5,4 +5,6 @@ let mul = (a, b) => {
     b == 1 ? acc : internal(acc - not(a), a, b - 1);
   internal(a, a, b);
 };
-mul(4, 6);
+// every function is curryied
+let mulFive = mul(5);
+mulFive(3) - mul(2, 3);

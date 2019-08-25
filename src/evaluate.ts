@@ -44,7 +44,7 @@ type T = {
 //   }
 //   throw new Error(`unknown node type ${node.type}`);
 // };
-const createFunction = (node: Node, run: (args: Value[]) => Value): Object => ({
+const createFunction = (run: (args: Value[]) => Value): Object => ({
   internal: {
     '[[Call]]': (args: Value[]) => run(args),
   },
@@ -94,10 +94,16 @@ const execute = (scope: Scope) => (node: Node): Value => {
       }
       throw new Error(`param type unknown ${node.type}`);
     });
-    return createFunction(node, (values: Value[]) => {
-      const internalScope = { ...scope, ...R.zipObj(keys, values) };
-      return execute(internalScope)(node.body);
-    });
+    const run = (scope: Scope, keys: string[]) => (values: Value[]) => {
+      const keysFound = keys.slice(0, values.length);
+      const clojureScope = { ...scope, ...R.zipObj(keysFound, values) };
+
+      if (keys.length > values.length) {
+        return createFunction(run(clojureScope, keys.slice(values.length)));
+      }
+      return execute(clojureScope)(node.body);
+    };
+    return createFunction(run(scope, keys));
   }
   if (node.type === type.BinaryExpression) {
     if (node.operator === '-') {
