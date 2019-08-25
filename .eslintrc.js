@@ -7,6 +7,7 @@ module.exports = {
   ],
   rules: {
     '@typescript-eslint/explicit-function-return-type': 0,
+    '@typescript-eslint/ban-types': 0,
     'no-restricted-syntax': 0,
   },
   overrides: [

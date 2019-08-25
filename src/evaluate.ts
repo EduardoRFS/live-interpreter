@@ -4,80 +4,44 @@ import {
   TSESTree,
   AST_NODE_TYPES as type,
 } from '@typescript-eslint/typescript-estree';
-import { Dictionary } from 'ts-essentials';
 import R from 'ramda';
+import Value from './value';
+import Scope from './scope';
 
-type Value = Object | boolean | string | number | null;
-type Object = {
-  internal: Dictionary<unknown>;
-  descriptors: Dictionary<{
-    configurable: boolean;
-    enumerable: boolean;
-    writable: boolean;
-    value: Value;
-  }>;
-};
-type Function = Object & {
-  internal: {
-    '[[Call]]': (args: Value[]) => Value;
-  };
-};
 type Node = TSESTree.Node;
-type Scope = Dictionary<Value>;
 type T = {
-  value: unknown;
+  value: Value;
   scope: Scope;
 };
-
-// const toString = (node: Node): string => {
-//   const combine = (...parts: string[]) =>
-//     parts.filter(x => typeof x === 'string').join(' ');
-//   if (node.type === type.Identifier) {
-//     return node.name;
-//   }
-//   if (node.type === type.Literal) {
-//     return node.raw;
-//   }
-//   if (node.type === type.ArrowFunctionExpression) {
-//     const params = node.params.map(toString).join(', ');
-//     return combine(`(${params})`, '=>', toString(node.body));
-//   }
-//   throw new Error(`unknown node type ${node.type}`);
-// };
-const createFunction = (run: (args: Value[]) => Value): Object => ({
-  internal: {
-    '[[Call]]': (args: Value[]) => run(args),
-  },
-  descriptors: {},
-});
-const isFunction = (value: Value): value is Function =>
-  value !== null && typeof value === 'object' && !!value.internal['[[Call]]'];
-
-const execute = (scope: Scope) => (node: Node): Value => {
+const execute = (scope: Scope) => (node: Node): T => {
+  const keep = (value: Value) => ({ scope, value });
   if (node.type === type.Identifier) {
-    return scope[node.name];
+    return keep(Scope.get(scope, node.name));
   }
   if (node.type === type.Literal) {
     if (
       typeof node.value === 'string' ||
       typeof node.value === 'number' ||
-      typeof node.value === 'boolean' ||
-      node.value === null
+      typeof node.value === 'boolean'
     ) {
-      return node.value;
+      return keep(node.value);
     }
     throw new Error(`unknown literal type ${node.value}`);
   }
   if (node.type === type.VariableDeclaration) {
-    node.declarations.forEach(execute(scope));
-    return null;
+    if (node.declarations.length !== 1) {
+      throw new Error('declarations should have only one declaration at time');
+    }
+    const [declaration] = node.declarations;
+    return execute(scope)(declaration);
   }
   if (node.type === type.VariableDeclarator) {
     if (node.init && node.id.type === type.Identifier) {
       // TODO: grr mutation
       // eslint-disable-next-line no-param-reassign
-      scope[node.id.name] = execute(scope)(node.init) as Value;
-      return null;
+
+      const { value } = execute(scope)(node.init);
+      return { value, scope: Scope.set(scope, node.id.name, value) };
     }
     if (!node.init) {
       throw new Error(`node init shouldn't be null`);
@@ -94,35 +58,38 @@ const execute = (scope: Scope) => (node: Node): Value => {
       }
       throw new Error(`param type unknown ${node.type}`);
     });
-    const run = (scope: Scope, keys: string[]) => (values: Value[]) => {
+    const run = (scope: Scope, keys: string[]) => (
+      ...values: Value[]
+    ): Value => {
       const keysFound = keys.slice(0, values.length);
       const clojureScope = { ...scope, ...R.zipObj(keysFound, values) };
-
       if (keys.length > values.length) {
-        return createFunction(run(clojureScope, keys.slice(values.length)));
+        return run(clojureScope, keys.slice(values.length));
       }
-      return execute(clojureScope)(node.body);
+      return execute(clojureScope)(node.body).value;
     };
-    return createFunction(run(scope, keys));
+    return keep(run(scope, keys));
   }
   if (node.type === type.BinaryExpression) {
     if (node.operator === '-') {
-      const a = execute(scope)(node.left) as any;
-      const b = execute(scope)(node.right) as any;
-      return a - b;
+      const a = execute(scope)(node.left).value as any;
+      const b = execute(scope)(node.right).value as any;
+      return keep(a - b);
     }
     if (node.operator === '==') {
-      const a = execute(scope)(node.left) as any;
-      const b = execute(scope)(node.right) as any;
-      return a === b;
+      const a = execute(scope)(node.left).value as any;
+      const b = execute(scope)(node.right).value as any;
+      return keep(a === b);
     }
     throw new Error(`unknown operator ${node.operator}`);
   }
   if (node.type === type.CallExpression) {
-    const fn = execute(scope)(node.callee);
-    const args = node.arguments.map(arg => execute(scope)(arg));
-    if (isFunction(fn)) {
-      return fn.internal['[[Call]]'](args);
+    const fn = execute(scope)(node.callee).value;
+    const args = node.arguments
+      .map(arg => execute(scope)(arg))
+      .map(t => t.value);
+    if (Value.isFunction(fn)) {
+      return keep(fn(...args));
     }
     throw new Error(`${JSON.stringify(node.callee)} isn't a function`);
   }
@@ -132,31 +99,18 @@ const execute = (scope: Scope) => (node: Node): Value => {
       : execute(scope)(node.alternate);
   }
   if (node.type === type.Program || node.type === type.BlockStatement) {
-    return R.last(node.body.map(execute(scope)));
+    return node.body.reduce(({ scope }, node) => execute(scope)(node), {
+      scope,
+    }) as T;
   }
   throw new Error(`unknown node type ${node.type}`);
 };
-const evaluate = (source: string): T => {
-  const getReturn = (value: Value) => {
-    if (
-      typeof value === 'string' ||
-      typeof value === 'number' ||
-      typeof value === 'boolean' ||
-      value === null
-    ) {
-      return value;
-    }
-    if (isFunction(value)) {
-      return (...args: Value[]) => value.internal['[[Call]]'](args);
-    }
-    const object = Object.create(null);
-    Object.defineProperties(object, value.descriptors);
-    return object;
-  };
-  const getReturnScope = (scope: Scope): Scope => R.map(getReturn, scope);
+const evaluate = (baseScope: Scope, source: string): T => {
   const program = parse(source);
-  const scope = {};
-  const value = execute(scope)(program);
-  return { value: getReturn(value), scope: getReturnScope(scope) };
+  const { scope, value } = execute(Scope.fromNative(baseScope))(program);
+  return {
+    value: Value.toNative(value),
+    scope: Scope.toNative(scope),
+  };
 };
 export default evaluate;
