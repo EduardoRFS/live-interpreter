@@ -9,6 +9,8 @@ module.exports = {
     '@typescript-eslint/explicit-function-return-type': 0,
     '@typescript-eslint/ban-types': 0,
     'no-restricted-syntax': 0,
+    'no-shadow': 0,
+    'import/no-cycle': 0,
   },
   overrides: [
     {
