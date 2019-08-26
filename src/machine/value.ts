@@ -1,8 +1,9 @@
 import State from './state';
+import Scope from './scope';
 
 // eslint-disable-next-line @typescript-eslint/no-namespace
 namespace internal {
-  export type Function = { start: number; end: number };
+  export type Function = { start: number; end: number; scope: Scope };
   export type Number = number;
   export type Native = (state: State) => State;
 }

@@ -36,7 +36,7 @@ const execute = (t: State, op: Instruction): State => {
     if (Value.isNumber(t.acc)) {
       const start = t.index + 1;
       const end = t.index + t.acc;
-      return next({ ...t, index: end, acc: { start, end } });
+      return next({ ...t, index: end, acc: { start, end, scope: t.scope } });
     }
     throw new Error(`${t.acc} isn't a number`);
   }
@@ -46,9 +46,11 @@ const execute = (t: State, op: Instruction): State => {
   if (op.opcode === Opcode.Call) {
     if (Value.isFunction(t.acc)) {
       const instructions = t.instructions.slice(t.acc.start, t.acc.end + 1);
+      // TODO: remove this
       let internalT = {
         ...t,
         index: t.acc.start,
+        scope: t.acc.scope,
         stack: [...t.stack, t.index],
       };
       for (const op of instructions) {
@@ -57,7 +59,10 @@ const execute = (t: State, op: Instruction): State => {
         }
         internalT = execute(internalT, op);
       }
-      return next({ ...internalT, index: t.index, stack: t.stack });
+      return next({
+        ...t,
+        acc: internalT.acc,
+      });
     }
     if (Value.isNative(t.acc)) {
       return next(t.acc(t));
