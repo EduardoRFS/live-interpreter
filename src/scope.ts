@@ -3,7 +3,7 @@ import Value from './value';
 type Key = string;
 type T = { readonly [key in Key]: Value };
 
-declare type Scope = T;
+type Scope = T;
 const Scope = {
   create: (): T => Object.create(null),
   get: (t: T, key: Key): Value => {
